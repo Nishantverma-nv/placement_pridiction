@@ -2,33 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Placement Prediction System</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- CSS File -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Header -->
+    <header>
+        <h1>Placement Prediction System</h1>
+        <p>Machine Learning Project using Flask</p>
 
-    <header class="topbar">
-        <div class="brand">
-            <span class="brand-mark">PPS</span>
-            <span class="brand-name">Placement Prediction System</span>
-        </div>
-        <nav class="navbar">
-            <a href="{{ url_for('home') }}"><span class="idx">00</span>Home</a>
-            <a href="{{ url_for('load') }}"><span class="idx">01</span>Dataset</a>
-            <a href="{{ url_for('preprocessing') }}"><span class="idx">02</span>EDA</a>
-            <a href="{{ url_for('eda') }}"><span class="idx">03</span>Preprocessing</a>
-            <a href="{{ url_for('models') }}"><span class="idx">04</span>Evalution</a>
-            <a href="{{ url_for('results') }}"><span class="idx">05</span>Comparsion</a>
-             <a href="{{ url_for('results') }}"><span class="idx">06</span>Prediction</a>
-
-        </nav>
     </header>
+    <hr>
+    <!-- Navigation Menu -->
+    <nav>
+        <a href="/">Home</a> |
+        <a href="/dataset">Dataset</a> |
+        <a href="/eda">EDA</a> |
+        <a href="/preprocessing">Preprocessing</a> |
+        <a href="/models">Models</a> |
+        <a href="/evaluation">Evaluation</a> |
+        <a href="/comparison">Comparison</a> |
+        <a href="/prediction">Prediction</a>
+    </nav>
+    <hr>
+    <!-- Page Content -->
+    <div>
+        {% block content %}
 
-    <main class="content">
-        {% block content %}{% endblock %}
-    </main>
-
+        {% endblock %}
+    </div>
 </body>
 </html>
