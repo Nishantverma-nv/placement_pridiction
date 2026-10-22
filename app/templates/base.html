@@ -1,37 +1,92 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Placement Prediction System</title>
-    <!-- CSS File -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PlacementPredict{% endblock %} · ML System</title>
+  <meta name="description" content="PlacementPredict — a production-style supervised ML system: data, features, models, serving and monitoring.">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232563eb'/><text x='16' y='22' font-size='16' text-anchor='middle' fill='white' font-family='Segoe UI' font-weight='bold'>P</text></svg>">
 </head>
-<body>
-    <!-- Header -->
-    <header>
-        <h1>Placement Prediction System</h1>
-        <p>Machine Learning Project using Flask</p>
+<body {% block bodyattrs %}{% endblock %}>
 
-    </header>
-    <hr>
-    <!-- Navigation Menu -->
-    <nav>
-        <a href="/">Home</a> |
-        <a href="/dataset">Dataset</a> |
-        <a href="/eda">EDA</a> |
-        <a href="/preprocessing">Preprocessing</a> |
-        <a href="/models">Models</a> |
-        <a href="/evaluation">Evaluation</a> |
-        <a href="/comparison">Comparison</a> |
-        <a href="/prediction">Prediction</a>
-    </nav>
-    <hr>
-    <!-- Page Content -->
-    <div>
-        {% block content %}
+  <div class="topbar">
+    <b>PlacementPredict</b>
+    <button class="nav-toggle" id="navToggle" aria-label="Open menu">Menu</button>
+  </div>
 
-        {% endblock %}
-    </div>
+  <div class="shell">
+    <aside class="sidebar" id="navLinks">
+      <div class="brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <b>PlacementPredict</b>
+          <span>ML System</span>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <p>Overview</p>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('home') }}" class="{{ 'active' if active == 'home' }}"><i>H</i>Home</a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <p>M1 · System &amp; Data</p>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('lifecycle') }}" class="{{ 'active' if active == 'lifecycle' }}"><i>M1</i>ML Lifecycle</a></li>
+          <li><a href="{{ url_for('dataset') }}" class="{{ 'active' if active == 'dataset' }}"><i>D</i>Dataset</a></li>
+          <li><a href="{{ url_for('eda') }}" class="{{ 'active' if active == 'eda' }}"><i>E</i>EDA &amp; Charts</a></li>
+          <li><a href="{{ url_for('preprocessing') }}" class="{{ 'active' if active == 'preprocessing' }}"><i>P</i>Preprocessing</a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <p>Models</p>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('linear') }}" class="{{ 'active' if active == 'linear' }}"><i>M2</i>Linear Models <span class="nav-tag">M2</span></a></li>
+          <li><a href="{{ url_for('trees') }}" class="{{ 'active' if active == 'trees' }}"><i>M3</i>Tree Models <span class="nav-tag">M3</span></a></li>
+          <li><a href="{{ url_for('models_page') }}" class="{{ 'active' if active == 'models' }}"><i>T</i>Training Run</a></li>
+          <li><a href="{{ url_for('evaluation') }}" class="{{ 'active' if active == 'evaluation' }}"><i>V</i>Evaluation</a></li>
+          <li><a href="{{ url_for('comparison') }}" class="{{ 'active' if active == 'comparison' }}"><i>C</i>Comparison</a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <p>M4 · Unsupervised</p>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('unsupervised') }}" class="{{ 'active' if active == 'unsupervised' }}"><i>M4</i>Clustering &amp; Outliers</a></li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <p>Serve &amp; Report</p>
+        <ul class="nav-links">
+          <li><a href="{{ url_for('prediction') }}" class="{{ 'active' if active == 'prediction' }}"><i>S</i>Predict a Student</a></li>
+          <li><a href="{{ url_for('report') }}" class="{{ 'active' if active == 'report' }}"><i>R</i>System Report <span class="nav-tag">Ctrl+S</span></a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-foot">
+        <b>4 supervised models</b> trained on 50,000 student records ·
+        served from a frozen <span class="mono">pipeline.pkl</span>.
+      </div>
+    </aside>
+
+    <main class="main">
+      {% block content %}{% endblock %}
+
+      <footer class="foot">
+        <span>PlacementPredict · supervised classification · Flask + scikit-learn</span>
+        <span>M1 lifecycle → M2 linear → M3 trees → M4 unsupervised</span>
+      </footer>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

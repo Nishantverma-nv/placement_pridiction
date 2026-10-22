@@ -1,5 +1,98 @@
 {% extends "base.html" %}
+{% block title %}Comparison{% endblock %}
+
 {% block content %}
-<h2>Model Comparison</h2>
-<p>Model comparison results will be shown here.</p>
+<div class="pagehead">
+  <div class="crumb">Compare · Decide</div>
+  <h1>Model comparison</h1>
+  <p>Linear vs single tree vs bagging vs boosting — same data, same split, same metrics.</p>
+</div>
+
+<div class="chart-grid">
+  <div class="chart-card">
+    <h4>Accuracy · F1 · ROC-AUC side by side</h4>
+    <img src="{{ url_for('static', filename='charts/model_compare.png') }}" alt="Comparison chart">
+    <figcaption>All four clear 90% accuracy; the spread between them is under two points.</figcaption>
+  </div>
+  <div class="chart-card">
+    <h4>ROC curves — ranking quality</h4>
+    <img src="{{ url_for('static', filename='charts/roc_curves.png') }}" alt="ROC curves">
+    <figcaption>AUC separates them more cleanly than accuracy does.</figcaption>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Scoreboard</h2>
+</div>
+
+<div class="table-wrap">
+  <table class="data">
+    <tr><th>Model</th><th>Accuracy</th><th>F1</th><th>ROC-AUC</th><th>Training speed</th><th>Interpretability</th></tr>
+    <tr>
+      <td><b>Logistic Regression</b> {% if best == 'Logistic Regression' %}<span class="chip green">deployed</span>{% endif %}</td>
+      {% if metrics['Logistic Regression'] %}
+      <td class="num">{{ '%.2f'|format(metrics['Logistic Regression'].accuracy) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Logistic Regression'].f1) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Logistic Regression'].roc_auc) }}</td>
+      {% endif %}
+      <td>Very fast</td><td class="metric-win">Excellent — readable coefficients</td>
+    </tr>
+    <tr>
+      <td><b>Decision Tree</b></td>
+      {% if metrics['Decision Tree'] %}
+      <td class="num">{{ '%.2f'|format(metrics['Decision Tree'].accuracy) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Decision Tree'].f1) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Decision Tree'].roc_auc) }}</td>
+      {% endif %}
+      <td>Very fast</td><td class="metric-win">Excellent — if/then rules</td>
+    </tr>
+    <tr>
+      <td><b>Random Forest</b></td>
+      {% if metrics['Random Forest'] %}
+      <td class="num">{{ '%.2f'|format(metrics['Random Forest'].accuracy) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Random Forest'].f1) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Random Forest'].roc_auc) }}</td>
+      {% endif %}
+      <td>Fast (parallel)</td><td>Good — importances only</td>
+    </tr>
+    <tr>
+      <td><b>Gradient Boosting</b></td>
+      {% if metrics['Gradient Boosting'] %}
+      <td class="num">{{ '%.2f'|format(metrics['Gradient Boosting'].accuracy) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Gradient Boosting'].f1) }}</td>
+      <td class="num">{{ '%.3f'|format(metrics['Gradient Boosting'].roc_auc) }}</td>
+      {% endif %}
+      <td>Sequential</td><td>Medium — importances + SHAP</td>
+    </tr>
+  </table>
+</div>
+
+<div class="grid-2 mt">
+  <div class="card tilt">
+    <h3>Which one would you ship?</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li><b>Tie on metrics → ship the simple one.</b> Logistic regression wins on F1 and explains itself.</li>
+      <li><b>Non-linear interactions matter →</b> boosting usually buys 1–2 points on tabular data.</li>
+      <li><b>Latency &amp; memory critical →</b> linear or a single tree; forests are 100× larger.</li>
+      <li><b>Regulated decisions →</b> linear or shallow tree, so you can justify every rule.</li>
+    </ul>
+  </div>
+  <div class="card tilt">
+    <h3>What the numbers say here</h3>
+    <p style="font-size:14.2px">
+      The data is largely <i>linearly separable</i> along academic strength, so a hyperplane already
+      captures most of the structure — that is why the simple model holds its own against ensembles.
+      Trees still rank marginally better by AUC, which would matter if we scored and ranked students
+      rather than thresholding them.
+    </p>
+    <div class="callout" style="margin-bottom:0">
+      <b>Deployment rule used here:</b> best hold-out F1, tie broken in favour of interpretability.
+    </div>
+  </div>
+</div>
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('prediction') }}">Use the deployed model</a>
+  <a class="btn ghost" href="{{ url_for('report') }}">Read the full report</a>
+</div>
 {% endblock %}

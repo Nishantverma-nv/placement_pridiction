@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Data — PlacementPredict{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div class="crumb">M1 · Data</div>
+  <h1>The dataset</h1>
+  <p>50,000 engineering students · academic records, skills and placement outcome.</p>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><b data-count="{{ summary['rows'] }}">{{ '{:,}'.format(summary['rows']) }}</b><span>Records</span></div>
+  <div class="kpi teal"><b data-count="{{ summary['columns'] }}">{{ summary['columns'] }}</b><span>Columns</span></div>
+  <div class="kpi amber"><b>{{ '{:,}'.format(summary['nulls']) }}</b><span>Missing cells (handled in prep)</span></div>
+  <div class="kpi green"><b>{{ '{:,}'.format(summary['target_counts'][1]) }}</b><span>Placed students</span></div>
+</div>
+
+<div class="card" style="margin-bottom:24px">
+  <h3>Preview — first 8 rows</h3>
+  <div class="table-wrap">
+    <table class="data">
+      <tr>{% for k in rows[0].keys() %}<th>{{ k }}</th>{% endfor %}</tr>
+      {% for r in rows %}
+      <tr>{% for v in r.values() %}<td>{{ v if v is not none else '·' }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>Schema &amp; missing values</h3>
+    <div class="table-wrap">
+      <table class="data">
+        <tr><th>Feature</th><th>Type</th><th>Missing</th></tr>
+        {% for k, v in columns.items() %}
+        <tr><td>{{ k }}</td><td class="mono">{{ v }}</td><td>{{ nulls[k] }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Reading the data</h3>
+    <p><b>Target</b> — <span class="chip green">PlacementStatus</span> (1 = placed).</p>
+    <p><b>Academics</b> — 8 semester grades, CGPA, college tier, stream, specialisation.</p>
+    <p><b>Skills</b> — aptitude, coding and interview scores, soft-skill rating.</p>
+    <p><b>Experience</b> — internships, projects, workshops, certifications, publications.</p>
+    <p><b>Context</b> — gender, city, hostel, history of backlogs.</p>
+    <div class="callout blue" style="margin-top:14px">
+      Fields like <span class="mono">Salary Package</span> and <span class="mono">IsAnomaly</span> are
+      dropped before training — salary exists only for placed students (label leakage).
+    </div>
+  </div>
+</div>
+{% endblock %}

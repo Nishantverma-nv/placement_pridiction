@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}M1 · Lifecycle — PlacementPredict as a System{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <h1>M1 · PlacementPredict as a System</h1>
+  <p>The machine-learning lifecycle, mapped to real files and endpoints.</p>
+</div>
+
+<div class="card" style="margin-bottom:26px">
+  <h3>The ML lifecycle — every stage, every home in code</h3>
+  <div class="diagram">
+    <span class="node">Raw data</span><span class="arrow">→</span>
+    <span class="node">Cleaned</span><span class="arrow">→</span>
+    <span class="node">Features</span><span class="arrow">→</span>
+    <span class="node">Train set</span><span class="arrow">→</span>
+    <span class="node">Model</span><span class="arrow">→</span>
+    <span class="node">Artifact</span><span class="arrow">→</span>
+    <span class="node">Served</span><span class="arrow">→</span>
+    <span class="node">Monitored</span>
+  </div>
+  <div class="table-wrap" style="margin-top:16px">
+    <table class="data">
+      <tr><th>Stage</th><th>Where it lives</th><th>What happens</th></tr>
+      <tr><td>Raw data</td><td class="mono">data/placement_data.csv</td><td>50,000 student profiles, 32 columns</td></tr>
+      <tr><td>Cleaning &amp; engineering</td><td class="mono">src/preprocessing.py</td><td>impute → scale → one-hot / ordinal</td></tr>
+      <tr><td>Training set</td><td class="mono">data/preprocessed_train.csv</td><td>stratified 80/20 hold-out split</td></tr>
+      <tr><td>Trained model</td><td class="mono">src/models.py</td><td>logistic, tree, random forest</td></tr>
+      <tr><td>Packaged artifact</td><td class="mono">models/pipeline.pkl · default_model.pkl</td><td>frozen transform + estimator</td></tr>
+      <tr><td>Served endpoint</td><td class="mono">app/app.py</td><td><span class="mono">/prediction</span> form · <span class="mono">/api/predict</span> JSON</td></tr>
+      <tr><td>Monitoring</td><td class="mono">src/serving.py · /api/health</td><td>latency, artifact state, metrics</td></tr>
+      <tr><td>Retraining loop</td><td class="mono">scripts/pipeline.py</td><td>one command rebuilds everything</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card tilt">
+    <h3>Which kind of learning is this?</h3>
+    <p><span class="chip green">Supervised</span> labels exist: <b>Placed / Not Placed</b>.
+    PlacementPredict learns a mapping from profile → outcome.</p>
+    <p><span class="chip slate">Not unsupervised</span> we are not discovering groups with no labels
+    — though M4 clustering is used to <i>explore</i> the same data.</p>
+    <p><span class="chip amber">Not reinforcement learning</span> there is no agent, no actions, no reward loop.</p>
+  </div>
+  <div class="card tilt">
+    <h3>Tracing one prediction end to end</h3>
+    <div class="diagram" style="margin:12px 0">
+      <span class="node">HTTP POST</span><span class="arrow">→</span>
+      <span class="node">Feature lookup</span><span class="arrow">→</span>
+      <span class="node">transform()</span><span class="arrow">→</span>
+      <span class="node">predict_proba()</span><span class="arrow">→</span>
+      <span class="node">JSON</span>
+    </div>
+    <p class="muted" style="font-size:13px">Batch prediction is the same path — the form accepts many rows
+    and scores them in one call. Try <span class="mono">POST /api/predict</span>.</p>
+  </div>
+</div>
+
+<div class="callout">
+  <b>The training–serving boundary.</b> The bug that bites most production systems is
+  <b>training-serving skew</b> — features prepared differently at serve time than at train time.
+  Feature stores exist to keep one canonical definition. Here the fitted
+  <span class="mono">pipeline.pkl</span> guarantees the exact same transform path from day one.
+</div>
+
+<div class="section">
+  <h2>What this course owns</h2>
+  <p class="sub">Classical ML + ML engineering. Deep learning, generative models and LLMs live downstream.</p>
+</div>
+<div class="grid-3">
+  <div class="flow-step"><b>This system</b><span>Classical ML · M1–M4 · linear, trees, unsupervised</span></div>
+  <div class="flow-step"><b>DLAC</b><span>Deep learning — neural nets, CNNs, transformers</span></div>
+  <div class="flow-step"><b>GALE / NLPL</b><span>Generative models &amp; LLMs</span></div>
+</div>
+
+<div class="callout blue">
+  <b>Try the service.</b> <a href="{{ url_for('prediction') }}">Predict a student</a> —
+  the latency and model name come back in the result card, live from <span class="mono">src/serving.py</span>.
+</div>
+{% endblock %}

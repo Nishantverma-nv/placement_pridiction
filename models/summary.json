@@ -1,0 +1,10 @@
+{
+  "rows": 50000,
+  "columns": 32,
+  "nulls": 19976,
+  "target_counts": {
+    "1": 32856,
+    "0": 17144
+  },
+  "placed_rate": 0.6571
+}

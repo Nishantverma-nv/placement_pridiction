@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}M2 · Linear Models{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div class="crumb">M2 · Supervised learning</div>
+  <h1>Linear models at depth</h1>
+  <p>Regression, regularisation, logistic &amp; softmax regression, scaling, encodings and missing
+     values — the family that is deployed in production here.</p>
+</div>
+
+<div class="grid-2">
+  <div class="card tilt">
+    <h3>Linear regression, revisited</h3>
+    <div class="table-wrap">
+      <table class="data">
+        <tr><th></th><th>Closed form</th><th>Gradient descent</th></tr>
+        <tr><td><b>Update</b></td><td class="mono">w = (XᵀX)⁻¹Xᵀy</td><td class="mono">w ← w − η·∇L(w)</td></tr>
+        <tr><td><b>Cost</b></td><td>One matrix inversion — O(n³)</td><td>Many cheap passes — O(iter·n·d)</td></tr>
+        <tr><td><b>Needs scaling?</b></td><td>No</td><td>Yes — otherwise slow / unstable</td></tr>
+        <tr><td><b>Production use</b></td><td>Baseline, tiny data</td><td>Large or streaming data</td></tr>
+      </table>
+    </div>
+    <p class="muted" style="font-size:13.4px;margin-top:10px">
+      Both find the same minimum of the least-squares loss; the choice is computational.</p>
+  </div>
+
+  <div class="card tilt">
+    <h3>Regularisation — stopping the fit from memorising</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li><b>Ridge (L2)</b> — adds λ·Σw². Shrinks weights smoothly; never zeroes them.</li>
+      <li><b>Lasso (L1)</b> — adds λ·Σ|w|. Drives weak weights to exactly 0 → built-in feature selection.</li>
+      <li><b>Elastic net</b> — L1 + L2. Best of both when features are correlated (our semester grades are).</li>
+      <li><b>Geometry:</b> the loss contour touches the L1 diamond at a corner — and a corner means a zero weight.</li>
+    </ul>
+    <div class="callout" style="margin-bottom:0">
+      <b>λ trade-off:</b> λ = 0 → overfit; λ → ∞ → all weights zero. Choose λ with cross-validation.
+    </div>
+  </div>
+</div>
+
+<div class="chart-grid mt">
+  <div class="chart-card">
+    <h4>Why L1 produces sparsity — the geometry</h4>
+    <img src="{{ url_for('static', filename='charts/regularization.png') }}" alt="L1 vs L2 geometry">
+    <figcaption>Blue circle (L2) usually meets the loss ellipse off-axis; the amber diamond (L1) meets it at a corner → w = 0.</figcaption>
+  </div>
+  <div class="chart-card">
+    <h4>Sigmoid &amp; cross-entropy loss</h4>
+    <img src="{{ url_for('static', filename='charts/sigmoid.png') }}" alt="Sigmoid and log loss">
+    <figcaption>σ(z) squashes a logit into a probability; log-loss punishes confident wrong answers hardest.</figcaption>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Logistic regression — the deployed model</h2>
+  <p class="sub">A linear decision boundary plus a sigmoid, trained by gradient descent on cross-entropy.</p>
+</div>
+
+<div class="grid-3">
+  <div class="flow-step">
+    <b>1 · Model</b>
+    <span class="mono">P(y=1|x) = σ(w·x + b)</span>
+    <span>The decision boundary <span class="mono">w·x + b = 0</span> is a hyperplane; σ bends the output into (0,1).</span>
+  </div>
+  <div class="flow-step">
+    <b>2 · Loss</b>
+    <span class="mono">−[y·log p + (1−y)·log(1−p)]</span>
+    <span>Cross-entropy — the standard loss for probabilistic binary classification.</span>
+  </div>
+  <div class="flow-step">
+    <b>3 · Optimise</b>
+    <span class="mono">w ← w − η·∇L(w) (+ ridge term)</span>
+    <span>Log-loss is convex → gradient descent finds the global optimum.</span>
+  </div>
+</div>
+
+<div class="card mt">
+  <h3>Multinomial (softmax) regression — beyond two classes</h3>
+  <p style="font-size:14.3px">
+    For <i>k</i> classes the model outputs <span class="mono">k</span> weight vectors and applies
+    <span class="mono">softmax(z)ᵢ = e^zᵢ / Σⱼ e^zⱼ</span>, giving a probability distribution that sums to 1.
+    Binary logistic regression is exactly the k = 2 case. Our task is binary
+    (<span class="chip green">Placed</span> <span class="chip slate">Not Placed</span>), so plain
+    logistic regression is the right tool.
+  </p>
+</div>
+
+<div class="section">
+  <h2>Worked example — ridge logistic regression on placement data</h2>
+  <p class="sub">Same features, same split, same pipeline as every other model. Coefficients are log-odds:
+     +0.8 means one unit up multiplies the odds of placement by e⁰·⁸ ≈ 2.2.</p>
+</div>
+
+<div class="grid-2">
+  <div class="chart-card wide" style="grid-column:auto">
+    <h4>Top coefficients — the linear model's reading of the data</h4>
+    <img src="{{ url_for('static', filename='charts/lr_coefs.png') }}" alt="Logistic regression coefficients">
+    <figcaption>“No backlogs”, soft skills and internships push toward Placed; a backlog history pushes away.
+      CGPA reads slightly negative only because the eight semester grades already carry that signal —
+      classic multicollinearity, and exactly why we also ship tree models.</figcaption>
+  </div>
+  <div class="stack">
+    {% if metrics['Logistic Regression'] %}
+    <div class="card">
+      <h3>Hold-out performance</h3>
+      <div class="table-wrap">
+        <table class="data">
+          <tr><th>Metric</th><th>Value</th></tr>
+          <tr><td>Accuracy</td><td class="num"><b>{{ '%.2f'|format(metrics['Logistic Regression'].accuracy) }}</b></td></tr>
+          <tr><td>Precision</td><td class="num">{{ '%.2f'|format(metrics['Logistic Regression'].precision) }}</td></tr>
+          <tr><td>Recall</td><td class="num">{{ '%.2f'|format(metrics['Logistic Regression'].recall) }}</td></tr>
+          <tr><td>F1</td><td class="num"><b>{{ '%.3f'|format(metrics['Logistic Regression'].f1) }}</b></td></tr>
+          <tr><td>ROC-AUC</td><td class="num">{{ '%.3f'|format(metrics['Logistic Regression'].roc_auc) }}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="callout teal">
+      <b>Interpretation over accuracy:</b> coefficients are directly readable, so stakeholders can
+      audit <i>why</i> a student was scored a certain way — the reason this linear model is the one
+      shipped.
+    </div>
+    {% else %}
+    <div class="callout amber">Train the models to see coefficients and metrics.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="callout blue">
+  <b>Scaling recap.</b> <span class="mono">StandardScaler</span> (z-score) for gradient-descent models;
+  <span class="mono">MinMaxScaler</span> when you need a bounded [0,1] range (images, distances).
+  Trees in <a href="{{ url_for('trees') }}">M3</a> need neither — thresholds are scale-invariant.
+</div>
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('prediction') }}">Score a student with this model</a>
+  <a class="btn ghost" href="{{ url_for('trees') }}">Next: M3 tree-based models</a>
+</div>
+{% endblock %}

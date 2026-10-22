@@ -2,10 +2,11 @@ import pandas as pd
 import joblib
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
+from src.config import PROJECT_ROOT
 
 def load_preprocessed_data():
-    train_path = r"C:\Users\prath\PycharmProjects\PythonPlacementpredictionsystem\data\preprocessed_train.csv "
-    test_path = r"C:\Users\prath\PycharmProjects\PythonPlacementpredictionsystem\data\preprocessed_test.csv"
+    train_path = str(PROJECT_ROOT / "data/preprocessed_train.csv")
+    test_path = str(PROJECT_ROOT / "data/preprocessed_test.csv")
     train_data = pd.read_csv(train_path)
     test_data = pd.read_csv(test_path)
     return train_data, test_data
@@ -36,7 +37,7 @@ def evaluate_model(model, X_test, y_test):
     print(classification_report(y_test, y_pred))
 
 def save_model(model):
-        model_path = r"C:\Users\prath\PycharmProjects\PythonPlacementpredictionsystem\models\logistic_reg.pkl"
+        model_path = str(PROJECT_ROOT / "models/logistic_reg.pkl")
         joblib.dump(model, model_path)
         print("Model saved")
         print(model_path)

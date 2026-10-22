@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}M4 · Unsupervised{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div class="crumb">M4 · Unsupervised learning</div>
+  <h1>Clustering, structure &amp; outliers</h1>
+  <p>No labels here — finding segments, reducing dimensions and flagging anomalies in student profiles.</p>
+</div>
+
+<div class="callout">
+  <b>Clustering vs classification:</b> supervised learning answers <i>“will this student be placed?”</i>
+  given labels. Unsupervised learning answers <i>“what structure exists that we did not ask about?”</i>
+  Both work on the same table; only the target column differs.
+</div>
+
+<div class="section">
+  <h2>K-means — the modern Lloyd view</h2>
+</div>
+
+<div class="grid-3">
+  <div class="flow-step"><b>Assign</b><span>Every point joins the cluster of its nearest centroid — that is one Lloyd iteration.</span></div>
+  <div class="flow-step"><b>Update</b><span>Each centroid becomes the mean of its members. Repeat until nothing moves.</span></div>
+  <div class="flow-step"><b>Initialise well</b><span>K-means++ picks each starting centroid with probability ∝ distance² — fewer dud starts.</span></div>
+</div>
+
+<div class="grid-2 mt">
+  <div class="card">
+    <h3>Choosing k</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li><b>Elbow method</b> — plot within-cluster inertia vs k; take the knee where gains flatten.</li>
+      <li><b>Silhouette score</b> — how similar a point is to its own cluster vs neighbours; ∈ (−1, 1], higher is better.</li>
+      <li><b>Domain check</b> — does k = 3 mean something to a placement cell?</li>
+    </ul>
+    <p class="muted" style="font-size:13.3px"><b>Mini-batch k-means</b> samples small batches per
+      iteration — near-identical results on millions of rows in a fraction of the time.</p>
+  </div>
+  <div class="card">
+    <h3>Hierarchical clustering</h3>
+    <p style="font-size:14.2px">Agglomerative (bottom-up): each point starts as its own cluster, then
+      the closest pairs merge until one remains. Read the <b>dendrogram</b> and cut at the height
+      you want.</p>
+    <div class="table-wrap mt">
+      <table class="data">
+        <tr><th>Linkage</th><th>Distance between clusters</th><th>Effect</th></tr>
+        <tr><td>Single</td><td>Closest pair</td><td>Chains, finds elongated shapes</td></tr>
+        <tr><td>Complete</td><td>Farthest pair</td><td>Compact, outlier-sensitive</td></tr>
+        <tr><td>Average</td><td>Mean of all pairs</td><td>Compromise</td></tr>
+        <tr><td><b>Ward</b></td><td>Variance increase</td><td class="metric-win">Default — tight, balanced clusters</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>DBSCAN — density, and outliers for free</h2>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <p style="font-size:14.3px"><b>ε (eps)</b> — neighbourhood radius. <b>minPts</b> — how many
+      points make a core. Grow clusters from core points; reachability chains them together;
+      anything left alone is labelled <span class="chip amber">−1 = noise</span>.</p>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li>Finds <b>arbitrarily shaped</b> (non-convex) clusters — k-means cannot.</li>
+      <li>No need to pick k in advance.</li>
+      <li>Outliers fall out naturally — a free anomaly detector.</li>
+      <li>Sensitive to ε and to feature scaling (always standardise first).</li>
+    </ul>
+  </div>
+  <div class="chart-card">
+    <h4>DBSCAN — clusters &amp; outliers</h4>
+    <img src="{{ url_for('static', filename='charts/dbscan.png') }}" alt="DBSCAN">
+    <figcaption>Amber crosses are noise points: profiles no dense group claims.</figcaption>
+  </div>
+</div>
+
+<div class="chart-grid mt">
+  <div class="chart-card">
+    <h4>K-means elbow — within-cluster inertia</h4>
+    <img src="{{ url_for('static', filename='charts/elbow.png') }}" alt="Elbow">
+    <figcaption>The knee lands at k = 3 — three coherent student segments.</figcaption>
+  </div>
+  <div class="chart-card">
+    <h4>Silhouette score by k</h4>
+    <img src="{{ url_for('static', filename='charts/silhouette.png') }}" alt="Silhouette">
+    <figcaption>Confirms the choice: quality peaks around k = 3.</figcaption>
+  </div>
+  <div class="chart-card wide">
+    <h4>3-D student segments — CGPA × aptitude × coding</h4>
+    <img src="{{ url_for('static', filename='charts/kmeans_3d.png') }}" alt="K-means 3D">
+    <figcaption>Three clear strata: strong all-rounders, mid-pack, and students needing support.</figcaption>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Dimensionality reduction</h2>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>PCA — production-style use</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li>Projects onto the axes of <b>max variance</b>; components are linear, ordered, interpretable.</li>
+      <li><b>Always standardise first</b> — otherwise the feature with the biggest units dominates
+          variance and PC1 just means “large numbers”.</li>
+      <li>Use for compression, noise removal and as a pre-step for clustering.</li>
+      <li>Pick components so the cumulative explained variance clears 90–95%.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>t-SNE &amp; UMAP — visualisation only</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li><b>t-SNE</b>: <span class="mono">perplexity</span> ≈ local/global balance (5–50). Preserves
+          neighbourhoods, not global layout.</li>
+      <li><b>UMAP</b>: <span class="mono">n_neighbors</span> (local ↔ global) and
+          <span class="mono">min_dist</span> (how tight clusters pack).</li>
+      <li class="callout amber" style="margin-top:6px"><b>Distances in t-SNE/UMAP space are meaningless.</b>
+          Cluster <i>size</i> and <i>distance between clusters</i> are artefacts — read neighbourhoods only.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="chart-card wide mt">
+  <h4>PCA explained variance &amp; a Ward dendrogram</h4>
+  <img src="{{ url_for('static', filename='charts/dim_reduction.png') }}" alt="PCA and dendrogram">
+  <figcaption>Left: the first few principal components carry most of the information.
+    Right: hierarchical merge structure over 400 students — cut where the vertical lines get long.</figcaption>
+</div>
+
+<div class="section">
+  <h2>Anomaly detection</h2>
+</div>
+
+<div class="grid-3">
+  <div class="flow-step"><b>Isolation Forest</b><span>Randomly split features; anomalies isolate in fewer splits. Fast, unsupervised, scale-friendly.</span></div>
+  <div class="flow-step"><b>One-Class SVM</b><span>Learns a boundary around “normal” points. Intuition level here — O(n²–n³) on large data.</span></div>
+  <div class="flow-step"><b>Autoencoders</b><span>Neural net compresses then reconstructs; high reconstruction error = anomaly. Deep dive in DLAC.</span></div>
+</div>
+
+<div class="chart-card wide mt">
+  <h4>Isolation forest — anomalous profiles</h4>
+  <img src="{{ url_for('static', filename='charts/anomaly.png') }}" alt="Isolation forest">
+  <figcaption>Amber crosses: profiles the model isolates unusually easily — data-entry errors,
+    unusual combinations, or genuinely interesting cases worth a human look.</figcaption>
+</div>
+
+<div class="section">
+  <h2>When to cluster, when to predict</h2>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>Reach for unsupervised when…</h4>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li>you have <b>no labels</b>, or labels arrive months later;</li>
+      <li>you want <b>segments</b> for outreach (mentoring, resume workshops);</li>
+      <li>you need <b>outlier screening</b> before trusting the data;</li>
+      <li>you are exploring what features might exist.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Reach for supervised when…</h4>
+    <ul style="margin-left:18px;font-size:18px;list-style:none;margin-left:0">
+      <li style="font-size:14.2px">a defined outcome exists — <b>Placed / Not Placed</b>;</li>
+      <li style="font-size:14.2px">you must <b>measure</b> quality (F1, AUC) and improve it;</li>
+      <li style="font-size:14.2px">the answer drives an individual decision.</li>
+    </ul>
+    <div class="callout green" style="margin-bottom:0">
+      <b>The production trick:</b> fit k-means, append each student's <span class="mono">segment_id</span>
+      as one more feature, and let the M2/M3 classifier use group membership as extra signal —
+      unsupervised structure feeding a supervised model.
+    </div>
+  </div>
+</div>
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('report') }}">See this in the system report</a>
+  <a class="btn ghost" href="{{ url_for('lifecycle') }}">Back to M1 lifecycle</a>
+</div>
+{% endblock %}

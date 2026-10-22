@@ -1,9 +1,139 @@
 {% extends "base.html" %}
+{% block title %}Home{% endblock %}
 
 {% block content %}
+<section class="hero">
+  <div>
+    <div class="crumb" style="color:#7dd3fc;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700">PlacementPredict · ML System</div>
+    <h1 style="margin-top:10px">Predict student placement, <span>end to end.</span></h1>
+    <p>
+      A production-style supervised learning service: raw student data becomes clean features,
+      four trained models, a frozen serving pipeline and a report anyone can read.
+      The full lifecycle — M1 to M4 — lives in one codebase.
+    </p>
+    <div class="btn-row">
+      <a class="btn" href="{{ url_for('prediction') }}">Predict a student</a>
+      <a class="btn ghost" href="{{ url_for('report') }}">System report · Ctrl+S</a>
+    </div>
+    <div class="btn-row" style="margin-top:6px">
+      <span class="chip blue">M1 · System</span>
+      <span class="chip teal">M2 · Linear</span>
+      <span class="chip amber">M3 · Trees</span>
+      <span class="chip violet">M4 · Unsupervised</span>
+    </div>
+  </div>
+  <div class="stack3d" aria-hidden="true">
+    <div>DATA</div>
+    <div>FEATURES</div>
+    <div>MODEL</div>
+    <div>SERVE</div>
+  </div>
+</section>
 
-<h2>Home Page</h2>
+<div class="kpis">
+  <div class="kpi"><b data-count="{{ summary['rows'] }}">{{ '{:,}'.format(summary['rows']) }}</b><span>Student records</span></div>
+  <div class="kpi teal"><b data-count="{{ summary['columns'] }}">{{ summary['columns'] }}</b><span>Raw features</span></div>
+  <div class="kpi amber"><b>{{ '{:.0%}'.format(summary['placed_rate']) }}</b><span>Placement rate</span></div>
+  <div class="kpi green"><b>{{ best }}</b><span>Deployed model (best F1)</span></div>
+</div>
 
-<p>Welcome to the Placement Prediction System.</p>
+<div class="section">
+  <h2>The system at a glance</h2>
+  <p class="sub">Every stage of the ML lifecycle, mapped to a real page in this app.</p>
+</div>
 
+<div class="diagram">
+  <span class="node">Raw CSV</span><span class="arrow">→</span>
+  <span class="node">Clean</span><span class="arrow">→</span>
+  <span class="node">Features</span><span class="arrow">→</span>
+  <span class="node">Train</span><span class="arrow">→</span>
+  <span class="node">Evaluate</span><span class="arrow">→</span>
+  <span class="node">Package</span><span class="arrow">→</span>
+  <span class="node accent">Serve</span><span class="arrow">→</span>
+  <span class="node">Monitor</span><span class="arrow">→</span>
+  <span class="node">Retrain</span>
+</div>
+
+<div class="grid-4 mt">
+  <a class="module" href="{{ url_for('lifecycle') }}">
+    <span class="tag">M1</span>
+    <h3>System &amp; data</h3>
+    <p>Lifecycle stages, learning-type split, one prediction traced end to end, the training–serving boundary.</p>
+    <ul><li>Lifecycle</li><li>Dataset</li><li>EDA</li><li>Prep pipeline</li></ul>
+  </a>
+  <a class="module" href="{{ url_for('linear') }}">
+    <span class="tag">M2</span>
+    <h3>Linear models</h3>
+    <p>Ridge / lasso / elastic net, logistic &amp; softmax regression, scaling, encodings, missing values.</p>
+    <ul><li>Regularisation</li><li>Sigmoid</li><li>Coefficients</li></ul>
+  </a>
+  <a class="module" href="{{ url_for('trees') }}">
+    <span class="tag">M3</span>
+    <h3>Tree models</h3>
+    <p>Decision trees, pruning, bagging, boosting, XGBoost/LightGBM ideas, feature importance.</p>
+    <ul><li>Gini</li><li>Forests</li><li>Boosting</li></ul>
+  </a>
+  <a class="module" href="{{ url_for('unsupervised') }}">
+    <span class="tag">M4</span>
+    <h3>Unsupervised</h3>
+    <p>K-means, hierarchical clustering, DBSCAN, PCA, t-SNE/UMAP, anomaly detection.</p>
+    <ul><li>Clusters</li><li>PCA</li><li>Outliers</li></ul>
+  </a>
+</div>
+
+<div class="grid-2 mt">
+  <div class="card tilt">
+    <h3>One prediction, end to end</h3>
+    <div class="diagram">
+      <span class="node">POST /api/predict</span><span class="arrow">→</span>
+      <span class="node">transform()</span><span class="arrow">→</span>
+      <span class="node">predict_proba()</span><span class="arrow">→</span>
+      <span class="node accent">JSON</span>
+    </div>
+    <p class="muted" style="font-size:14px">
+      The same frozen <span class="mono">pipeline.pkl</span> runs at train time and serve time —
+      the concrete fix for training–serving skew. Batch scoring reuses the identical code path.
+    </p>
+    <div class="btn-row">
+      <a class="btn sm" href="{{ url_for('lifecycle') }}">Trace the request</a>
+      <a class="btn sm ghost" href="{{ url_for('prediction') }}">Try the endpoint</a>
+    </div>
+  </div>
+
+  <div class="card tilt">
+    <h3>What the models found</h3>
+    <p style="font-size:14.2px">
+      Academic strength dominates: semester grades, internships, mock interviews and soft skills
+      carry the signal. The linear model is deployed for its F1 <b>and</b> because its coefficients
+      can be read directly as log-odds.
+    </p>
+    <div class="callout green" style="margin-bottom:0">
+      <b>Best model:</b> {{ best }}
+      {% if metrics %} — accuracy {{ '%.1f'|format(metrics[best]['accuracy'] * 100) }}% ·
+      F1 {{ '%.3f'|format(metrics[best]['f1']) }} · ROC-AUC {{ '%.3f'|format(metrics[best]['roc_auc']) }}{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Reports &amp; charts</h2>
+  <p class="sub">{{ chart_count }} generated charts · a readable system report · everything reproducible with one command.</p>
+</div>
+
+<div class="chart-grid">
+  <div class="chart-card">
+    <h4>Placement outcome distribution</h4>
+    <img src="{{ url_for('static', filename='charts/target_dist.png') }}" alt="Placement outcome distribution">
+  </div>
+  <div class="chart-card">
+    <h4>Model comparison — accuracy · F1 · AUC</h4>
+    <img src="{{ url_for('static', filename='charts/model_compare.png') }}" alt="Model comparison">
+  </div>
+</div>
+
+<div class="callout blue mt">
+  <b>Press Ctrl+S anywhere</b> to save the complete system report as a standalone HTML file —
+  charts, tables and explanations included, readable by anyone. On the
+  <a href="{{ url_for('report') }}">report page</a> you can also print it to PDF.
+</div>
 {% endblock %}

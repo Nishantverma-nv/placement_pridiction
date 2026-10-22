@@ -1,16 +1,16 @@
-# This is a sample Python script.
+"""PlacementPredict — entry point.
 
-# Press Ctrl+F5 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+    python main.py      -> serves the web app at http://127.0.0.1:5000
+    python scripts/pipeline.py -> rebuilds data, models, charts and reports
+"""
 
+import os
+import sys
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press F9 to toggle the breakpoint.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from app.app import app
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+if __name__ == "__main__":
+    print("PlacementPredict running on http://127.0.0.1:5000  (Ctrl+C to stop)")
+    app.run(debug=True, host="127.0.0.1", port=5000)

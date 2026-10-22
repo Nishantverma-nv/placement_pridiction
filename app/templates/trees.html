@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}M3 · Tree Models{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div class="crumb">M3 · Supervised learning</div>
+  <h1>Tree-based models</h1>
+  <p>Decision trees, pruning, bagging, boosting and the modern industrial workhorses —
+     the family that routinely wins on tabular data.</p>
+</div>
+
+<div class="grid-2">
+  <div class="card tilt">
+    <h3>Decision trees — greedy top-down</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li><b>Split</b> at the root: pick the feature + threshold that most reduces impurity.</li>
+      <li><b>Gini</b> = 1 − Σpᵢ² · <b>Entropy</b> = −Σpᵢ·log₂pᵢ — both peak at 0.5 for a 50/50 mix.</li>
+      <li><b>Regression trees</b> minimise MSE instead of impurity.</li>
+      <li><b>Stop</b> when max depth is reached, a leaf is pure, or <span class="mono">min_samples_leaf</span> is hit.</li>
+      <li>Each leaf predicts the majority class / mean of its samples.</li>
+    </ul>
+    <p class="muted" style="font-size:13.2px">Gini and entropy usually give near-identical trees —
+      Gini is cheaper (no logarithm).</p>
+  </div>
+
+  <div class="card tilt">
+    <h3>Pruning — the bias/variance lever</h3>
+    <ul style="margin-left:18px;font-size:14.2px">
+      <li><b>Pre-pruning</b> — cap <span class="mono">max_depth</span>, <span class="mono">min_samples_split</span>,
+          <span class="mono">min_samples_leaf</span>. Cheap; risks stopping too early.</li>
+      <li><b>Post-pruning (cost-complexity, CCP)</b> — grow full, then cut branches that barely reduce
+          <span class="mono">Rα(T) = R(T) + α·|T|</span>. α tunes leaf count.</li>
+      <li><b>Read:</b> deep trees → low bias, high variance; shallow trees → high bias, low variance.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="chart-grid mt">
+  <div class="chart-card wide" style="grid-column:auto">
+    <h4>Bias–variance: depth of a single decision tree</h4>
+    <img src="{{ url_for('static', filename='charts/bias_variance.png') }}" alt="Bias variance curve">
+    <figcaption>Training accuracy climbs toward 100% while test accuracy peaks then falls —
+      the textbook overfitting curve, and why one tree alone is never enough.</figcaption>
+  </div>
+  <div class="chart-card" style="grid-column:auto">
+    <h4>Random forest — feature importance</h4>
+    <img src="{{ url_for('static', filename='charts/feat_importance.png') }}" alt="Feature importance">
+    <figcaption>Averaged Gini importance across 120 bags: later-semester grades, mock interviews
+      and projects dominate.</figcaption>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Random forests — bagging + feature subsampling</h2>
+</div>
+
+<div class="grid-3">
+  <div class="flow-step"><b>Bagging</b><span>Bootstrap samples (sample with replacement) → many deep trees, each seeing different data.</span></div>
+  <div class="flow-step"><b>Feature subsampling</b><span>At each split only √d features are considered — decorrelates the trees.</span></div>
+  <div class="flow-step"><b>Out-of-bag error</b><span>~37% of rows are left out of each bootstrap → a free validation set, no CV needed.</span></div>
+</div>
+
+<div class="callout teal mt">
+  <b>Variance-reduction argument:</b> averaging <i>n</i> uncorrelated estimators divides variance by
+  <i>n</i>. Trees are highly correlated, so random features + random samples push correlation down —
+  the forest's error falls while a single tree's does not. Bias stays roughly the bag's bias.
+</div>
+
+<div class="section">
+  <h2>Boosting — learning from mistakes</h2>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h3>AdaBoost (intuition)</h3>
+    <p style="font-size:14.2px">Train a weak learner, <b>raise the weight</b> of the rows it got wrong,
+      fit the next learner on the reweighted data, repeat. Final prediction = weighted vote.
+      Each round fixes the previous round's errors.</p>
+  </div>
+  <div class="card">
+    <h3>Gradient boosting = functional gradient descent</h3>
+    <p style="font-size:14.2px">Instead of reweighting rows, fit the next small tree to the
+      <b>negative gradient of the loss</b> — the direction that reduces loss fastest.
+      F(x) ← F(x) + η·h(x), shrinking with a learning rate η.</p>
+  </div>
+</div>
+
+<div class="grid-3 mt">
+  <div class="flow-step"><b>XGBoost</b><span>Split finding with sorted/quantile sketches, second-order (Hessian) gradients, L1/L2 leaf regularisation, column subsampling.</span></div>
+  <div class="flow-step"><b>LightGBM</b><span>Histogram binning + leaf-wise growth (grow the leaf with the largest loss gain) → much faster on large data.</span></div>
+  <div class="flow-step"><b>Here</b><span>sklearn's <span class="mono">HistGradientBoostingClassifier</span> — the same histogram-based idea, no extra install.</span></div>
+</div>
+
+<div class="section">
+  <h2>Feature importance — three lenses</h2>
+</div>
+
+<div class="table-wrap">
+  <table class="data">
+    <tr><th>Method</th><th>How</th><th>Weakness</th></tr>
+    <tr><td><b>Gini / mean decrease impurity</b></td><td>Total impurity drop across splits using that feature</td><td>Bias toward high-cardinality features; tree-only</td></tr>
+    <tr><td><b>Permutation importance</b></td><td>Shuffle one column on validation data; measure the accuracy drop</td><td>Model-agnostic; slower; correlated features mask each other</td></tr>
+    <tr><td><b>SHAP values</b> <span class="chip slate">preview</span></td><td>Game-theoretic attribution: each feature's marginal contribution per prediction</td><td>Costly to compute; deep dive lives in DLAC/GALE</td></tr>
+  </table>
+</div>
+
+<div class="callout amber">
+  <b>The Kaggle reality:</b> on structured/tabular data, gradient-boosted trees beat neural networks
+  in most public competitions — they need no GPU, no embedding of inputs, handle mixed types and
+  missing values natively, and are cheap to retune. Deep learning wins on unstructured data
+  (images, text, audio) — covered downstream in DLAC / NLPL.
+</div>
+
+<div class="section">
+  <h2>Worked example — trees vs the linear baseline</h2>
+  <p class="sub">Identical features, identical split. Trees need no scaling and capture non-linear
+     interactions the hyperplane cannot.</p>
+</div>
+
+<div class="chart-grid">
+  <div class="chart-card">
+    <h4>ROC curves — hold-out set</h4>
+    <img src="{{ url_for('static', filename='charts/roc_curves.png') }}" alt="ROC curves">
+    <figcaption>All four models rank students well; boosting edges the linear model on AUC.</figcaption>
+  </div>
+  <div class="chart-card">
+    <h4>Accuracy · F1 · AUC by model</h4>
+    <img src="{{ url_for('static', filename='charts/model_compare.png') }}" alt="Model comparison">
+    <figcaption>The gap is small — which is why interpretability (M2) breaks the tie for deployment.</figcaption>
+  </div>
+</div>
+
+<div class="callout green">
+  <b>Reading the result:</b> a single tree is a touch worse than the linear model; bagging and
+  boosting recover the non-linearity and land within a point of each other. When models tie on
+  metrics, ship the one whose decisions you can explain.
+</div>
+
+<div class="btn-row">
+  <a class="btn" href="{{ url_for('comparison') }}">Full comparison table</a>
+  <a class="btn ghost" href="{{ url_for('unsupervised') }}">Next: M4 unsupervised</a>
+</div>
+{% endblock %}

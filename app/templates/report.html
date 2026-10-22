@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}System Report{% endblock %}
+
+{% block bodyattrs %}data-save="1"{% endblock %}
+
+{% block content %}
+<div class="pagehead">
+  <div class="crumb">Report</div>
+  <h1>System report</h1>
+  <p>A complete, readable walkthrough of the PlacementPredict ML system.
+     Press <b>Ctrl+S</b> to save it — charts and tables included, readable by anyone.</p>
+</div>
+
+<div class="report-toolbar no-print">
+  <div class="muted" style="font-size:13.5px">
+    10 sections · data → model → serve → monitor · M1–M4 covered
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn sm" onclick="window.print()">Print / Save as PDF</button>
+    <a class="btn sm ghost" href="{{ url_for('report_export') }}" data-direct>Download standalone HTML</a>
+  </div>
+</div>
+
+<div class="report-doc">
+  <div class="report-head">
+    <h1>PlacementPredict — Machine Learning System Report</h1>
+    <p>Predicting student placement outcomes · supervised classification · data → model → serve → monitor</p>
+  </div>
+
+  <div class="report-body">
+    <h2>1 · Executive summary</h2>
+    <p>
+      PlacementPredict answers a single question: <b>will this student be placed?</b>
+      A student profile of ~30 inputs is transformed by a frozen pre-processing pipeline, scored by a
+      trained classifier, and returned with a probability in a few milliseconds. This report walks the
+      whole machine-learning lifecycle in plain language:
+    </p>
+    <ul>
+      <li><b>{{ '{:,}'.format(summary['rows']) }} student records</b> — grades, skills, experience, demographics;</li>
+      <li>one reproducible pre-processing pipeline (impute → scale → encode) reused at serve time;</li>
+      <li><b>four supervised models</b> compared on the same untouched hold-out set;</li>
+      <li>a live JSON endpoint <span class="mono">/api/predict</span> plus an interactive form;</li>
+      <li>an unsupervised exploration layer — segments, structure and outliers.</li>
+    </ul>
+
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr);gap:14px">
+      <div class="kpi"><b>{{ '{:,}'.format(summary['rows']) }}</b><span>Student records</span></div>
+      <div class="kpi teal"><b>{{ summary['columns'] }}</b><span>Raw features</span></div>
+      <div class="kpi amber"><b>{{ '{:.0%}'.format(summary['placed_rate']) }}</b><span>Placement rate</span></div>
+      <div class="kpi green"><b>{{ best }}</b><span>Deployed model (best F1)</span></div>
+    </div>
+
+    <h2>2 · PlacementPredict as a system <span class="muted">(M1)</span></h2>
+    <p>Every ML product follows the same lifecycle. In this codebase each stage has a concrete home:</p>
+    <div class="diagram">
+      <span class="node">Raw data</span><span class="arrow">→</span><span class="node">Clean</span>
+      <span class="arrow">→</span><span class="node">Features</span><span class="arrow">→</span>
+      <span class="node">Train set</span><span class="arrow">→</span><span class="node">Model</span>
+      <span class="arrow">→</span><span class="node">Artefact</span><span class="arrow">→</span>
+      <span class="node accent">Serve</span><span class="arrow">→</span><span class="node">Monitor</span>
+      <span class="arrow">→</span><span class="node">Retrain</span>
+    </div>
+    <table class="data">
+      <tr><th>Lifecycle stage</th><th>Where it lives in code</th><th>What happens</th></tr>
+      <tr><td>Raw data</td><td class="mono">data/placement_data.csv</td><td>{{ '{:,}'.format(summary['rows']) }} student profiles, {{ summary['columns'] }} columns</td></tr>
+      <tr><td>Cleaning &amp; feature engineering</td><td class="mono">src/preprocessing.py</td><td>impute → standardise → one-hot / ordinal encode</td></tr>
+      <tr><td>Training set</td><td class="mono">data/preprocessed_train.csv</td><td>stratified 80/20 hold-out split, seed 42</td></tr>
+      <tr><td>Training script</td><td class="mono">src/models.py</td><td>fits four classifiers, writes metrics.json</td></tr>
+      <tr><td>Model registry</td><td class="mono">models/*.pkl · default_model.pkl</td><td>pickled estimators; best-F1 model is the default</td></tr>
+      <tr><td>Serving framework</td><td class="mono">app/app.py · src/serving.py</td><td>Flask routes + <span class="mono">/api/predict</span> JSON API</td></tr>
+      <tr><td>Monitoring</td><td class="mono">/api/health</td><td>artifact state, model name, headline metrics</td></tr>
+      <tr><td>Retraining loop</td><td class="mono">scripts/pipeline.py</td><td>one command rebuilds data, models, charts, report</td></tr>
+    </table>
+
+    <div class="callout"><b>What kind of learning is this?</b> <b>Supervised classification</b> —
+      labels exist (Placed / Not Placed) and the model learns the mapping from profile to outcome.
+      It is <i>not</i> unsupervised (no label discovery) and <i>not</i> reinforcement learning
+      (no agent, no actions, no reward). Clustering in M4 is used only to <i>explore</i> the same data.</div>
+
+    <div class="callout blue"><b>Tracing one prediction:</b>
+      <span class="mono">HTTP POST</span> → feature lookup → <span class="mono">pipeline.transform()</span>
+      → <span class="mono">model.predict_proba()</span> → JSON response.
+      Batch prediction is the identical path executed on many rows — one code path, so single and
+      batch scoring can never disagree.</div>
+
+    <div class="callout amber"><b>The training–serving boundary.</b> The bug that breaks the most
+      production systems is <b>training-serving skew</b>: features computed differently at serve time
+      than at train time. Feature stores exist to keep one canonical definition of each feature.
+      Here the fitted <span class="mono">pipeline.pkl</span> is that single definition — fit once on
+      training data, then reused verbatim everywhere.</div>
+
+    <p class="muted"><b>Course scope:</b> this system owns classical ML and ML engineering (M1–M4).
+      Deep learning moves to DLAC, generative models to GALE, and LLMs to NLPL.</p>
+
+    <h2>3 · Data &amp; exploratory analysis <span class="muted">(M1)</span></h2>
+    <p>The dataset holds <b>{{ '{:,}'.format(summary['rows']) }} students</b> and
+      {{ summary['columns'] }} attributes. <b>{{ '{:,}'.format(summary['nulls']) }}</b> cells are
+      missing (five skill columns) and are handled in preprocessing. The target is imbalanced about
+      2:1 toward placed students — which is why F1 and AUC, not accuracy alone, decide the winner.</p>
+    <div class="grid2 grid-2">
+      <figure><img src="{{ url_for('static', filename='charts/target_dist.png') }}"><figcaption>Placement outcome distribution</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/cgpa_hist.png') }}"><figcaption>CGPA distribution</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/score_scatter.png') }}"><figcaption>CGPA vs aptitude, coloured by outcome</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/cgpa_box.png') }}"><figcaption>CGPA by outcome</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/stream_target.png') }}"><figcaption>Outcome by stream</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/corr_matrix.png') }}"><figcaption>Correlation matrix — numerical features</figcaption></figure>
+    </div>
+    <div class="callout"><b>Insight:</b> CGPA, aptitude and coding scores cleanly separate placed from
+      not-placed students. Semester grades are strongly correlated with each other and with CGPA —
+      the model leans on a compact set of academic signals rather than eight redundant columns.</div>
+
+    <h2>4 · Data preparation pipeline <span class="muted">(M1)</span></h2>
+    <ul>
+      <li><b>Clean</b> — drop <span class="mono">StudentID</span>,
+          <span class="mono">IsAnomaly</span> and <span class="mono">Salary Package</span> (salary
+          exists only for placed students — label leakage).</li>
+      <li><b>Impute</b> — median for numerics, most-frequent for categories;
+          ~{{ '{:,}'.format(summary['nulls']) }} missing cells repaired without dropping rows.</li>
+      <li><b>Scale</b> — <span class="mono">StandardScaler</span> so gradient descent in M2 converges.</li>
+      <li><b>Encode</b> — one-hot for six categorical columns, ordinal for
+          <span class="mono">CollegeTier</span> (Tier3→Tier1) and
+          <span class="mono">CGPA_Tier</span> (Low→Mid→High).</li>
+      <li><b>Split &amp; freeze</b> — stratified 80/20, seed 42; the fitted transformer is pickled
+          as <span class="mono">pipeline.pkl</span>.</li>
+    </ul>
+    <div class="grid-2">
+      <figure><img src="{{ url_for('static', filename='charts/missing.png') }}"><figcaption>Missing cells by column</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/scaling.png') }}"><figcaption>Before / after standardisation</figcaption></figure>
+    </div>
+
+    <h2>5 · Linear models <span class="muted">(M2)</span></h2>
+    <p><b>Regularisation first.</b> Ridge (L2) shrinks weights smoothly, lasso (L1) drives weak
+      weights to exactly zero, elastic net combines both. The geometry explains sparsity: the loss
+      contour meets the L1 diamond at a <i>corner</i>, and a corner means a zero weight.</p>
+    <div class="grid-2">
+      <figure><img src="{{ url_for('static', filename='charts/regularization.png') }}"><figcaption>Why L1 produces sparsity</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/sigmoid.png') }}"><figcaption>Sigmoid and cross-entropy loss</figcaption></figure>
+    </div>
+    <p><b>Logistic regression</b> computes P(placed) = σ(w·x + b): a hyperplane decision boundary
+      plus a sigmoid, trained by gradient descent on cross-entropy with ridge regularisation.
+      Coefficients are log-odds, so every score can be explained. Scaling matters for gradient
+      descent — not for the trees in M3.</p>
+    <figure><img src="{{ url_for('static', filename='charts/lr_coefs.png') }}"><figcaption>Top coefficients — the linear model's reading of the data</figcaption></figure>
+    <div class="callout"><b>Categorical features &amp; missing values</b> are covered in the same
+      pipeline: one-hot encoding for unordered categories, ordinal for ordered ones, target and
+      embedding encodings noted as advanced alternatives; deletion, mean/median, model-based
+      imputation and missingness flags compared — median/most-frequent is what production uses here.</div>
+
+    <h2>6 · Tree-based models <span class="muted">(M3)</span></h2>
+    <p><b>Decision trees</b> split greedily on Gini impurity and stop at depth/leaf limits;
+      cost-complexity pruning trims branches whose removal barely changes error. One deep tree
+      overfits — the classic bias–variance curve below.</p>
+    <figure><img src="{{ url_for('static', filename='charts/bias_variance.png') }}"><figcaption>Bias–variance trade-off as tree depth grows</figcaption></figure>
+    <p><b>Random forests</b> bag bootstrap samples with feature subsampling to cut variance, and give
+      an out-of-bag error for free. <b>Boosting</b> builds trees sequentially, each fitting the
+      residual gradient of the loss; histogram-based learners with leaf-wise growth
+      (XGBoost / LightGBM, and sklearn's HistGradientBoosting used here) are the modern workhorses
+      on tabular data.</p>
+    <figure><img src="{{ url_for('static', filename='charts/feat_importance.png') }}"><figcaption>Random-forest feature importance (Gini)</figcaption></figure>
+    <div class="callout amber"><b>Why trees win on tabular data:</b> no scaling, native handling of
+      missing values and mixed types, cheap tuning, and non-linear interactions for free. Neural
+      networks win on images, text and audio — that is DLAC/NLPL territory.</div>
+
+    <h2>7 · Evaluation &amp; comparison <span class="muted">(M1–M3)</span></h2>
+    <table class="data">
+      <tr><th>Model</th><th>Family</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>ROC-AUC</th></tr>
+      {% set fam = {'Logistic Regression': 'Linear', 'Decision Tree': 'Tree',
+                    'Random Forest': 'Bagging', 'Gradient Boosting': 'Boosting'} %}
+      {% for name, m in metrics.items() %}
+      <tr>
+        <td><b>{{ name }}</b>{% if name == best %} <span class="chip green">deployed</span>{% endif %}</td>
+        <td>{{ fam.get(name, '—') }}</td>
+        <td>{{ '%.2f'|format(m['accuracy']) }}</td><td>{{ '%.2f'|format(m['precision']) }}</td>
+        <td>{{ '%.2f'|format(m['recall']) }}</td><td><b>{{ '%.3f'|format(m['f1']) }}</b></td>
+        <td>{{ '%.3f'|format(m['roc_auc']) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <div class="grid-2">
+      <figure><img src="{{ url_for('static', filename='charts/roc_curves.png') }}"><figcaption>ROC curves — hold-out set</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/confusion.png') }}"><figcaption>Confusion matrix — {{ best }}</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/model_compare.png') }}"><figcaption>Accuracy · F1 · AUC by model</figcaption></figure>
+    </div>
+    <div class="callout blue"><b>Reading the table:</b> accuracy is the share of correct calls;
+      precision is how reliable a “placed” call is; recall is how many truly placed students we
+      catch; F1 balances both; AUC measures ranking quality. All four models exceed 90% accuracy —
+      <b>{{ best }}</b> is deployed because it has the best F1 <i>and</i> is the most interpretable.</div>
+
+    <h2>8 · Serving the prediction <span class="muted">(M1)</span></h2>
+    <div class="diagram">
+      <span class="node">POST /api/predict</span><span class="arrow">→</span><span class="node">Feature lookup</span>
+      <span class="arrow">→</span><span class="node">pipeline.transform()</span><span class="arrow">→</span>
+      <span class="node">predict_proba()</span><span class="arrow">→</span><span class="node accent">JSON</span>
+    </div>
+    <ul>
+      <li><span class="mono">/prediction</span> — interactive form with a live result card;</li>
+      <li><span class="mono">/api/predict</span> — JSON in / JSON out for other systems;</li>
+      <li><span class="mono">/api/health</span> — artifact state and metrics for monitoring;</li>
+      <li><span class="mono">/report/export</span> — this report as a standalone HTML file.</li>
+    </ul>
+    <p>The frozen pipeline means the transform at serve time is byte-for-byte the transform used in
+      training — the practical defence against training–serving skew.</p>
+
+    <h2>9 · Unsupervised learning <span class="muted">(M4)</span></h2>
+    <div class="grid-2">
+      <figure><img src="{{ url_for('static', filename='charts/elbow.png') }}"><figcaption>K-means elbow → k = 3</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/silhouette.png') }}"><figcaption>Silhouette score by k</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/kmeans_3d.png') }}"><figcaption>3-D student segments</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/dbscan.png') }}"><figcaption>DBSCAN clusters &amp; outliers</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/dim_reduction.png') }}"><figcaption>PCA explained variance &amp; dendrogram</figcaption></figure>
+      <figure><img src="{{ url_for('static', filename='charts/anomaly.png') }}"><figcaption>Isolation-forest anomalies</figcaption></figure>
+    </div>
+    <p>Clustering finds structure without labels: three student segments appear in k-means, DBSCAN
+      and isolation forest flag unusual profiles as outliers, and PCA compresses the semester-grade
+      block into a couple of components. Segment labels can even be fed back as features into the
+      supervised model — a common production pattern.</p>
+
+    <h2>10 · Conclusions, limitations &amp; reproduction</h2>
+    <ul>
+      <li>Academic performance dominates placement outcomes; skills (aptitude, coding, interviews) add signal.</li>
+      <li>Predictions are a <b>decision aid</b> — they cannot capture company demand, interview luck or market swings.</li>
+      <li>The ~2:1 class imbalance means accuracy alone would be misleading; F1 and AUC are tracked instead.</li>
+      <li>Retraining on fresh cohorts each semester keeps the model honest as profiles drift.</li>
+    </ul>
+    <div class="callout green">
+      <b>Reproduce everything:</b><br>
+      <span class="mono">pip install -r requirements.txt</span><br>
+      <span class="mono">python scripts/pipeline.py</span> — rebuilds training data, models, metrics and every chart.<br>
+      <span class="mono">python app/app.py</span> — serves the web app at http://localhost:5000.<br>
+      <b>Ctrl+S</b> saves this report; the export button downloads the same content as one self-contained HTML file.
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,154 @@
 {% extends "base.html" %}
+{% block title %}Predict{% endblock %}
+
 {% block content %}
-<h2>Prediction</h2>
-<p>Prediction form will be added here.</p>
+<div class="pagehead">
+  <div class="crumb">Serve</div>
+  <h1>Predict a student</h1>
+  <p>The same request that <span class="mono">POST /api/predict</span> serves: feature lookup →
+     <span class="mono">pipeline.transform()</span> → <span class="mono">predict_proba()</span> → JSON.</p>
+</div>
+
+<div class="grid-2" style="grid-template-columns: 1.35fr 1fr; align-items:start">
+  <form class="card" id="predictForm">
+    <h3>Student profile</h3>
+    <div class="form-grid mt">
+      {% for name, label, lo, hi, step, default in numeric_fields %}
+      <div class="field">
+        <label for="{{ name }}">{{ label }}</label>
+        <input type="number" id="{{ name }}" name="{{ name }}" min="{{ lo }}" max="{{ hi }}"
+               step="{{ step }}" value="{{ default }}" required>
+      </div>
+      {% endfor %}
+
+      {% for name, label, options in select_fields %}
+      <div class="field">
+        <label for="{{ name }}">{{ label }}</label>
+        <select id="{{ name }}" name="{{ name }}">
+          {% for opt in options %}<option value="{{ opt }}">{{ opt }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+
+    <details class="adv">
+      <summary>Advanced — semester grades (blank = use CGPA for all eight)</summary>
+      <div class="form-grid">
+        {% for name, label, lo, hi, step, default in sem_fields %}
+        <div class="field">
+          <label for="{{ name }}">{{ label }}</label>
+          <input type="number" id="{{ name }}" name="{{ name }}" min="{{ lo }}" max="{{ hi }}" step="{{ step }}" value="">
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+
+    <div class="btn-row">
+      <button class="btn" type="submit">Run prediction</button>
+      <button class="btn ghost" type="button" id="resetBtn">Reset</button>
+    </div>
+  </form>
+
+  <div class="stack">
+    <div class="result" id="resultBox">
+      <div class="muted" style="font-size:12.5px;letter-spacing:.1em;text-transform:uppercase">Result</div>
+      <div class="verdict" id="verdict">Awaiting request…</div>
+      <div class="gauge"><span id="gaugeBar" style="width:0%"></span></div>
+      <div class="muted" style="font-size:13px" id="gaugeLabel">Probability of placement appears here</div>
+      <div class="result-meta" id="resultMeta">
+        <div>Model<b>—</b></div>
+        <div>Latency<b>—</b></div>
+        <div>Features<b>—</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Programmatic call</h4>
+<pre class="code" style="margin-top:6px">
+curl -X POST /api/predict \
+  -H "Content-Type: application/json" \
+  -d '{"CGPA": 8.4, "AptitudeTestScore": 82,
+       "Internships": 2, "HistoryOfBacklogs": "No",
+       "Stream": "CS", "CollegeTier": "Tier1"}'
+</pre>
+      <p class="muted" style="font-size:13px">
+        Response: <span class="mono">{"prediction":"Placed","probability":0.93,
+        "latency_ms":4.1,"model":"LogisticRegression","features_used":48}</span>
+      </p>
+    </div>
+
+    <div class="card">
+      <h4>Service health</h4>
+      <p class="muted" style="font-size:13.4px">
+        <span class="mono">GET /api/health</span> reports artifact state, the loaded model and
+        headline metrics — the hook a monitoring dashboard would poll.
+      </p>
+      <a class="btn sm ghost" href="{{ url_for('api_health') }}" target="_blank" data-direct>Open /api/health</a>
+    </div>
+  </div>
+</div>
+
+<div class="callout blue mt">
+  <b>What happens server-side:</b> the JSON payload is mapped onto the raw feature columns,
+  passed through the frozen <span class="mono">pipeline.pkl</span> (impute → scale → encode),
+  then scored. Batch prediction is the same path with many rows — no separate code to maintain,
+  so training and serving can never drift apart.
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById("predictForm");
+  var box = document.getElementById("resultBox");
+
+  function collect() {
+    var payload = {};
+    new FormData(form).forEach(function (v, k) {
+      if (v !== "") payload[k] = isNaN(Number(v)) ? v : Number(v);
+    });
+    return payload;
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    document.getElementById("verdict").textContent = "Scoring…";
+    fetch("/api/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(collect())
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) throw new Error(d.error);
+        var placed = d.prediction === "Placed";
+        var pct = Math.round(d.probability * 100);
+        var v = document.getElementById("verdict");
+        v.textContent = d.prediction + " · " + pct + "%";
+        v.className = "verdict " + (placed ? "ok" : "no");
+        document.getElementById("gaugeBar").style.width = pct + "%";
+        document.getElementById("gaugeLabel").textContent =
+          "Model confidence that this student is " + (placed ? "placed" : "not placed");
+        document.getElementById("resultMeta").innerHTML =
+          "<div>Model<b>" + d.model + "</b></div>" +
+          "<div>Latency<b>" + d.latency_ms + " ms</b></div>" +
+          "<div>Features<b>" + d.features_used + "</b></div>" +
+          "<div>Endpoint<b>POST /api/predict</b></div>";
+        if (window.ppToast) window.ppToast("Prediction complete — " + d.latency_ms + " ms");
+      })
+      .catch(function (err) {
+        document.getElementById("verdict").textContent = "Error: " + err.message;
+        document.getElementById("verdict").className = "verdict no";
+      });
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    form.reset();
+    document.getElementById("verdict").textContent = "Awaiting request…";
+    document.getElementById("verdict").className = "verdict";
+    document.getElementById("gaugeBar").style.width = "0%";
+    document.getElementById("gaugeLabel").textContent = "Probability of placement appears here";
+  });
+})();
+</script>
 {% endblock %}

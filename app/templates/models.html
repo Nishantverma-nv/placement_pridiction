@@ -1,5 +1,119 @@
 {% extends "base.html" %}
+{% block title %}Training Run{% endblock %}
+
 {% block content %}
-<h2>Models</h2>
-<p>Trained models will be listed here.</p>
+<div class="pagehead">
+  <div class="crumb">Train · Package</div>
+  <h1>Training run</h1>
+  <p>Four supervised classifiers, one shared pipeline, one hold-out set —
+     <span class="mono">src/models.py → models/*.pkl</span>.</p>
+</div>
+
+<div class="grid-4">
+  <div class="kpi"><b>80 / 20</b><span>Stratified split · seed 42</span></div>
+  <div class="kpi teal"><b>4</b><span>Model families trained</span></div>
+  <div class="kpi amber"><b>{{ best }}</b><span>Chosen by F1 → <span class="mono">default_model.pkl</span></span></div>
+  <div class="kpi green"><b>{{ metrics|length }}</b><span>Score reports in <span class="mono">metrics.json</span></span></div>
+</div>
+
+<div class="section">
+  <h2>What was trained</h2>
+  <p class="sub">Each model sees exactly the same 48 preprocessed features.</p>
+</div>
+
+<div class="stack">
+  <div class="card tilt">
+    <h3>Logistic Regression <span class="chip blue">M2 · linear</span>
+        {% if best == 'Logistic Regression' %}<span class="chip green">deployed</span>{% endif %}</h3>
+    <p class="muted" style="font-size:14px">
+      <span class="mono">LogisticRegression(max_iter=2000)</span> · L2 regularisation ·
+      gradient descent on scaled features · coefficients are readable log-odds.</p>
+    {% if metrics['Logistic Regression'] %}
+    <div class="result-meta">
+      <div>Accuracy<b>{{ '%.2f'|format(metrics['Logistic Regression'].accuracy) }}</b></div>
+      <div>F1<b>{{ '%.3f'|format(metrics['Logistic Regression'].f1) }}</b></div>
+      <div>ROC-AUC<b>{{ '%.3f'|format(metrics['Logistic Regression'].roc_auc) }}</b></div>
+      <div>Recall<b>{{ '%.2f'|format(metrics['Logistic Regression'].recall) }}</b></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card tilt">
+    <h3>Decision Tree <span class="chip amber">M3 · tree</span></h3>
+    <p class="muted" style="font-size:14px">
+      <span class="mono">DecisionTreeClassifier(max_depth=8, min_samples_leaf=40)</span> ·
+      greedy Gini splits, pre-pruned — interpretable rules, no scaling needed.</p>
+    {% if metrics['Decision Tree'] %}
+    <div class="result-meta">
+      <div>Accuracy<b>{{ '%.2f'|format(metrics['Decision Tree'].accuracy) }}</b></div>
+      <div>F1<b>{{ '%.3f'|format(metrics['Decision Tree'].f1) }}</b></div>
+      <div>ROC-AUC<b>{{ '%.3f'|format(metrics['Decision Tree'].roc_auc) }}</b></div>
+      <div>Recall<b>{{ '%.2f'|format(metrics['Decision Tree'].recall) }}</b></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card tilt">
+    <h3>Random Forest <span class="chip amber">M3 · ensemble</span></h3>
+    <p class="muted" style="font-size:14px">
+      <span class="mono">RandomForestClassifier(n_estimators=120, max_depth=14, min_samples_leaf=10, n_jobs=-1)</span> ·
+      bagging + feature subsampling → variance reduction.</p>
+    {% if metrics['Random Forest'] %}
+    <div class="result-meta">
+      <div>Accuracy<b>{{ '%.2f'|format(metrics['Random Forest'].accuracy) }}</b></div>
+      <div>F1<b>{{ '%.3f'|format(metrics['Random Forest'].f1) }}</b></div>
+      <div>ROC-AUC<b>{{ '%.3f'|format(metrics['Random Forest'].roc_auc) }}</b></div>
+      <div>Recall<b>{{ '%.2f'|format(metrics['Random Forest'].recall) }}</b></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card tilt">
+    <h3>Gradient Boosting <span class="chip violet">M3 · boosting</span></h3>
+    <p class="muted" style="font-size:14px">
+      <span class="mono">HistGradientBoostingClassifier(max_iter=300, learning_rate=0.08, max_depth=8)</span> ·
+      histogram-based splits and leaf-wise growth — the LightGBM/XGBoost idea in scikit-learn.</p>
+    {% if metrics['Gradient Boosting'] %}
+    <div class="result-meta">
+      <div>Accuracy<b>{{ '%.2f'|format(metrics['Gradient Boosting'].accuracy) }}</b></div>
+      <div>F1<b>{{ '%.3f'|format(metrics['Gradient Boosting'].f1) }}</b></div>
+      <div>ROC-AUC<b>{{ '%.3f'|format(metrics['Gradient Boosting'].roc_auc) }}</b></div>
+      <div>Recall<b>{{ '%.2f'|format(metrics['Gradient Boosting'].recall) }}</b></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section">
+  <h2>What gets written to disk</h2>
+</div>
+
+<div class="table-wrap">
+  <table class="data">
+    <tr><th>Artefact</th><th>Path</th><th>Role</th></tr>
+    <tr><td>Fitted preprocessor</td><td class="mono">models/pipeline.pkl</td><td>The training–serving contract</td></tr>
+    <tr><td>Default estimator</td><td class="mono">models/default_model.pkl</td><td>Best-F1 model, loaded at serve time</td></tr>
+    <tr><td>Per-model estimators</td><td class="mono">models/*.pkl</td><td>Offline comparison and analysis</td></tr>
+    <tr><td>Metrics</td><td class="mono">models/metrics.json</td><td>Accuracy / P / R / F1 / AUC + confusion + coefficients</td></tr>
+    <tr><td>Dataset summary</td><td class="mono">models/summary.json</td><td>Rows, columns, nulls, target balance</td></tr>
+    <tr><td>Charts</td><td class="mono">app/static/charts/*.png</td><td>Every figure on this site</td></tr>
+  </table>
+</div>
+
+<pre class="code mt">
+<b>def</b> run_training():
+    train, test = pd.read_csv(<em>"data/preprocessed_train.csv"</em>), pd.read_csv(<em>"data/preprocessed_test.csv"</em>)
+    <b>for</b> name, model <b>in</b> make_models().items():
+        model.fit(Xtr, ytr)                        <em># fit on the training fold only</em>
+        metrics[name] = evaluate(yte, model.predict(Xte), model.predict_proba(Xte))
+        joblib.dump(model, MODELS_DIR / f<em>"{name.lower()}.pkl"</em>)
+    best = max(models, key=<b>lambda</b> n: metrics[n][<em>"f1"</em>])     <em># deployment rule: best F1</em>
+    joblib.dump(models[best], DEFAULT_MODEL)
+</pre>
+
+<div class="callout blue">
+  <b>Retraining loop:</b> <span class="mono">python scripts/pipeline.py</span> rebuilds the training
+  set, refits every model, regenerates all charts and the summary — the same command you would cron
+  each semester on fresh cohorts.
+</div>
 {% endblock %}

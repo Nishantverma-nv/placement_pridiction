@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, OrdinalEncoder
 from sklearn.impute import SimpleImputer
 from src.data.load_data import load_data   # your custom loader
+from src.config import PROJECT_ROOT
 
 def split_data(df,target_column,drop_columns=None,stratify=False):
     # Target column should match your dataset
@@ -128,8 +129,8 @@ if __name__ == "__main__":
     X_test["PlacementStatus"] = y_test
 
     # Save preprocessed data
-    X_train.to_csv(r"C:\Users\prath\PycharmProjects\PythonPlacementpredictionsystem\data\preprocessed_train.csv", index=False)
-    X_test.to_csv(r"C:\Users\prath\PycharmProjects\PythonPlacementpredictionsystem\data\preprocessed_test.csv", index=False)
+    X_train.to_csv(str(PROJECT_ROOT / "data/preprocessed_train.csv"), index=False)
+    X_test.to_csv(str(PROJECT_ROOT / "data/preprocessed_test.csv"), index=False)
 
     print("Preprocessing finished. Train and test CSVs saved.")
     print(X_train.head())
